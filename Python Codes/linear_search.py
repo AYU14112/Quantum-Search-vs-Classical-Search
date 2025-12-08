@@ -1,29 +1,20 @@
 # linear_search.py
 """
-Linear (classical) search module.
-Provides `linear_search_once()` and `linear_search_repeated()`.
-
-Usage:
-    from linear_search import linear_search_once
-    res = linear_search_once(dataset, target)
+Linear search module with pretty printing and optional simple plotting support.
+Exports:
+ - linear_search_once(dataset, target)
+ - linear_search_repeated(dataset, target, repeats=3)
+ - pretty_print_linear_result(result)
 """
-
 import time
 import numpy as np
+import matplotlib.pyplot as plt
 
 def now():
     return time.perf_counter()
 
 def linear_search_once(dataset, target):
-    """
-    Perform linear search and return:
-    {
-      'index': int,
-      'steps': int,            # number of comparisons
-      'elapsed_c_impl': float, # time using dataset.index (C-optimized)
-      'elapsed_py_impl': float # time using explicit Python loop
-    }
-    """
+    """Return dict: index, steps, elapsed_c_impl, elapsed_py_impl"""
     t0 = now()
     try:
         idx_c = dataset.index(target)
@@ -44,29 +35,41 @@ def linear_search_once(dataset, target):
 
     idx = idx_c if idx_c != -1 else idx_py
     return {
-        'index': idx,
-        'steps': steps,
-        'elapsed_c_impl': elapsed_c,
-        'elapsed_py_impl': elapsed_py
+        'index': int(idx),
+        'steps': int(steps),
+        'elapsed_c_impl': float(elapsed_c),
+        'elapsed_py_impl': float(elapsed_py)
     }
 
 def linear_search_repeated(dataset, target, repeats=3):
-    records = []
-    for _ in range(repeats):
-        records.append(linear_search_once(dataset, target))
-    steps = int(np.median([r['steps'] for r in records]))
-    elapsed_c = float(np.median([r['elapsed_c_impl'] for r in records]))
-    elapsed_py = float(np.median([r['elapsed_py_impl'] for r in records]))
-    index = records[0]['index']
+    recs = [linear_search_once(dataset, target) for _ in range(repeats)]
     return {
-        'index': index,
-        'steps': steps,
-        'elapsed_c_impl': elapsed_c,
-        'elapsed_py_impl': elapsed_py
+        'index': recs[0]['index'],
+        'steps': int(np.median([r['steps'] for r in recs])),
+        'elapsed_c_impl': float(np.median([r['elapsed_c_impl'] for r in recs])),
+        'elapsed_py_impl': float(np.median([r['elapsed_py_impl'] for r in recs]))
     }
 
+def pretty_print_linear_result(res):
+    print("\n--- Linear Search Result ---")
+    print(f"Index found: {res['index']}")
+    print(f"Steps (comparisons): {res['steps']}")
+    print(f"Time (C-optimized .index): {res['elapsed_c_impl']:.6e} s")
+    print(f"Time (Python loop): {res['elapsed_py_impl']:.6e} s")
+    print("----------------------------\n")
+
+def plot_linear_result(res, dataset_size):
+    # simple bar: python vs c implementation times
+    labels = ['C impl (.index)', 'Python loop']
+    times = [res['elapsed_c_impl'] * 1000, res['elapsed_py_impl'] * 1000]  # ms
+    plt.figure(figsize=(6,4))
+    plt.bar(labels, times)
+    plt.ylabel('Time (ms)')
+    plt.title(f'Linear search timing (N={dataset_size})')
+    plt.show()
+
 if __name__ == "__main__":
-    # demo
     data = list(range(32))
-    print("Linear search demo; searching target 15 in range(32)")
-    print(linear_search_once(data, 15))
+    out = linear_search_repeated(data, 15, repeats=3)
+    pretty_print_linear_result(out)
+    plot_linear_result(out, len(data))
