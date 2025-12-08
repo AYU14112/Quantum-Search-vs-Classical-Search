@@ -76,7 +76,7 @@ def run_grover_once(target, n_qubits, shots=1024, transpile_opt=3, warmup=True, 
     """
     iterations = compute_optimal_iterations(n_qubits)
     qc = build_grover_circuit(target, n_qubits, iterations)
-    simulator = AerSimulator(method='statevector' if use_statevector else 'qasm')
+    simulator = AerSimulator(method='automatic')
 
     t0 = now()
     qc_transpiled = transpile(qc, simulator, optimization_level=transpile_opt)
