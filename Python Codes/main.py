@@ -1,12 +1,21 @@
 # main.py
 import sys
-import math   # ✅ FIX: missing import added
+import math
+import tkinter as tk
+from tkinter import messagebox
 
 from dataset_adapters import load_and_find_target
 from linear_search import linear_search
 from binary_search import binary_search
 from quantum_search import run_grover
 from graphs import plot_steps, plot_success_probability
+
+
+def show_popup(title, message):
+    root = tk.Tk()
+    root.withdraw()  # Hide main window
+    messagebox.showinfo(title, message)
+    root.destroy()
 
 
 def main():
@@ -27,14 +36,24 @@ def main():
         sys.exit("Target cannot be empty")
 
     try:
-        dataset, target_value, target_index = load_and_find_target(
+        dataset, target_value, target_index, matched_row = load_and_find_target(
             dataset_path, target, max_rows
         )
     except Exception as e:
         sys.exit(f"\n❌ {e}")
 
-    print(f"\n✅ Target FOUND at dataset index: {target_index}")
-    print(f"Total dataset size: {len(dataset)} records")
+    # ---------- POPUP RESULT ----------
+    popup_message = (
+        "Target Found Successfully!\n\n"
+        f"Row number (1-based): {target_index + 1}\n"
+        f"Row index (0-based): {target_index}\n\n"
+        "Matched Record:\n"
+        f"{matched_row}"
+    )
+
+    show_popup("Search Result Found", popup_message)
+
+    print(f"\nTotal dataset size: {len(dataset)} records")
 
     # --------------------------------------------------
     # Experiment configuration
@@ -79,7 +98,7 @@ def main():
         local_target_index = window.index(target_value)
 
         print(f"\nRunning benchmark for N = {N}")
-        print(f"Target local index in window: {local_target_index}")
+        print(f"Target local index in quantum window: {local_target_index}")
 
         # -------- Classical Linear Search --------
         lin = linear_search(window, target_value)
@@ -120,6 +139,7 @@ def main():
     print("\nGraphs saved:")
     print(" - search_steps_comparison.png")
     print(" - grover_success_probability.png")
+
     print("\n==== EXPERIMENT COMPLETED SUCCESSFULLY ====\n")
 
 

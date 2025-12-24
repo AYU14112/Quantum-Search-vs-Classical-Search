@@ -14,7 +14,7 @@ def encode(value):
 
 def load_and_find_target(path, target, max_rows=None):
     """
-    Loads a dataset and finds the FIRST row/record that contains the target string.
+    Loads a dataset and finds the FIRST record that contains the target string.
 
     Supported formats:
       - .txt, .log  (line-based)
@@ -22,30 +22,30 @@ def load_and_find_target(path, target, max_rows=None):
       - .json       (list of objects)
 
     Returns:
-      dataset       -> list[int]   (encoded rows)
-      target_value  -> int         (encoded row that matched target)
-      target_index  -> int         (index of that row in dataset)
-
-    This design is REQUIRED for Grover's algorithm correctness.
+      dataset        -> list[int]   (encoded records)
+      target_value   -> int         (encoded matched record)
+      target_index   -> int         (index of matched record)
+      matched_row    -> str / obj   (actual matched record)
     """
 
     ext = Path(path).suffix.lower()
     dataset = []
     target_value = None
     target_index = None
+    matched_row = None
     target_lower = target.lower()
 
-    def check_and_add(row_value):
-        nonlocal target_value, target_index
-        encoded = encode(row_value)
+    def check_and_add(record):
+        nonlocal target_value, target_index, matched_row
+        encoded = encode(record)
         dataset.append(encoded)
 
-        # First occurrence only
-        if target_index is None and target_lower in str(row_value).lower():
+        if target_index is None and target_lower in str(record).lower():
             target_value = encoded
             target_index = len(dataset) - 1
+            matched_row = record
 
-    # -------- TXT / LOG --------
+    # ---------- TXT / LOG ----------
     if ext in [".txt", ".log"]:
         with open(path, encoding="utf-8", errors="ignore") as f:
             for i, line in enumerate(f):
@@ -55,7 +55,7 @@ def load_and_find_target(path, target, max_rows=None):
                 if line:
                     check_and_add(line)
 
-    # -------- CSV --------
+    # ---------- CSV ----------
     elif ext == ".csv":
         with open(path, newline="", encoding="utf-8", errors="ignore") as f:
             reader = csv.reader(f)
@@ -65,7 +65,7 @@ def load_and_find_target(path, target, max_rows=None):
                 joined_row = " ".join(row)
                 check_and_add(joined_row)
 
-    # -------- JSON --------
+    # ---------- JSON ----------
     elif ext == ".json":
         with open(path, encoding="utf-8", errors="ignore") as f:
             records = json.load(f)
@@ -83,4 +83,4 @@ def load_and_find_target(path, target, max_rows=None):
     if target_index is None:
         raise ValueError("Target not found in dataset")
 
-    return dataset, target_value, target_index
+    return dataset, target_value, target_index, matched_row
