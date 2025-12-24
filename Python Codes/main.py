@@ -1,9 +1,8 @@
 # main.py
 import sys
-import random
+import math   # ✅ FIX: missing import added
 
-# ---- Project modules ----
-from dataset_adapters import load_any
+from dataset_adapters import load_and_find_target
 from linear_search import linear_search
 from binary_search import binary_search
 from quantum_search import run_grover
@@ -11,31 +10,31 @@ from graphs import plot_steps, plot_success_probability
 
 
 def main():
-    print("\n==== DATASET-AGNOSTIC SEARCH BENCHMARK (CLASSICAL vs QUANTUM) ====\n")
+    print("\n==== UNIVERSAL DATASET SEARCH (CLASSICAL vs QUANTUM) ====\n")
 
     # --------------------------------------------------
-    # Dataset loading (AUTO-DETECTED TYPE)
+    # Dataset + target input
     # --------------------------------------------------
     dataset_path = input("Enter dataset file path: ").strip().strip('"').strip("'")
     if not dataset_path:
-        print("Dataset path is required.")
-        sys.exit(1)
+        sys.exit("Dataset path is required")
 
-    max_rows = input("Max rows to load (press Enter for full file): ").strip()
+    max_rows = input("Max rows to scan (press Enter for full file): ").strip()
     max_rows = int(max_rows) if max_rows else None
 
+    target = input("\nEnter what you want to find (exact text): ").strip()
+    if not target:
+        sys.exit("Target cannot be empty")
+
     try:
-        dataset = load_any(dataset_path, max_rows=max_rows)
+        dataset, target_value, target_index = load_and_find_target(
+            dataset_path, target, max_rows
+        )
     except Exception as e:
-        print("Failed to load dataset:", e)
-        sys.exit(1)
+        sys.exit(f"\n❌ {e}")
 
-    if len(dataset) < 2:
-        print("Dataset too small for search experiments.")
-        sys.exit(1)
-
-    print(f"\nLoaded dataset size: {len(dataset)} records")
-    print("Dataset type detected automatically based on file extension.")
+    print(f"\n✅ Target FOUND at dataset index: {target_index}")
+    print(f"Total dataset size: {len(dataset)} records")
 
     # --------------------------------------------------
     # Experiment configuration
@@ -44,12 +43,7 @@ def main():
         min_n = int(input("\nEnter minimum qubits (n_min): "))
         max_n = int(input("Enter maximum qubits (n_max): "))
     except ValueError:
-        print("Invalid input for qubits.")
-        sys.exit(1)
-
-    if min_n < 1 or max_n < min_n:
-        print("Invalid qubit range.")
-        sys.exit(1)
+        sys.exit("Invalid qubit input")
 
     shots_input = input("Quantum shots (default 1024): ").strip()
     shots = int(shots_input) if shots_input else 1024
@@ -64,7 +58,7 @@ def main():
     success_rates = []
 
     # --------------------------------------------------
-    # Benchmark loop
+    # Benchmark loop (CORRECT QUANTUM WINDOWING)
     # --------------------------------------------------
     for n in range(min_n, max_n + 1):
         N = 2 ** n
@@ -73,14 +67,19 @@ def main():
             print(f"\nSkipping N={N} (dataset too small)")
             continue
 
+        # ----- Build window that CONTAINS the target -----
+        start = max(0, target_index - N // 2)
+        end = start + N
+
+        if end > len(dataset):
+            end = len(dataset)
+            start = end - N
+
+        window = dataset[start:end]
+        local_target_index = window.index(target_value)
+
         print(f"\nRunning benchmark for N = {N}")
-
-        # Sample subset for fair comparison
-        window = random.sample(dataset, N)
-
-        # Choose random target
-        target_value = random.choice(window)
-        target_index = window.index(target_value)
+        print(f"Target local index in window: {local_target_index}")
 
         # -------- Classical Linear Search --------
         lin = linear_search(window, target_value)
@@ -90,7 +89,7 @@ def main():
 
         # -------- Quantum Grover Search --------
         try:
-            q = run_grover(target_index, n, shots=shots)
+            q = run_grover(local_target_index, n, shots=shots)
         except Exception as e:
             print("Quantum execution failed:", e)
             continue
@@ -102,28 +101,25 @@ def main():
         quantum_iters.append(q["iterations"])
         success_rates.append(q["success_rate"])
 
-        # Print summary for this N
-        print(f"Linear steps : {lin['steps']}")
-        print(f"Binary steps : {binr['steps']}")
-        print(f"Grover iters : {q['iterations']}")
-        print(f"Success prob : {q['success_rate']*100:.2f}%")
+        # Output
+        print(f"Linear steps      : {lin['steps']}")
+        print(f"Binary steps      : {binr['steps']}")
+        print(f"Grover iterations : {q['iterations']}")
+        print(f"Success prob      : {q['success_rate']*100:.2f}%")
 
     # --------------------------------------------------
     # Graph generation
     # --------------------------------------------------
     if not dataset_sizes:
-        print("\nNo valid data collected. Graphs not generated.")
-        sys.exit(0)
+        sys.exit("\nNo valid data collected. Graphs not generated.")
 
-    print("\nGenerating graphs for PPT & Viva...")
-
+    print("\nGenerating graphs...")
     plot_steps(dataset_sizes, linear_steps, binary_steps, quantum_iters)
     plot_success_probability(dataset_sizes, success_rates)
 
-    print("\nGraphs saved as:")
+    print("\nGraphs saved:")
     print(" - search_steps_comparison.png")
     print(" - grover_success_probability.png")
-
     print("\n==== EXPERIMENT COMPLETED SUCCESSFULLY ====\n")
 
 
